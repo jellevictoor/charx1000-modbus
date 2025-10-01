@@ -1,0 +1,19 @@
+services:
+  charx1000-reader:
+    build: .
+    container_name: charx1000-modbus-reader
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - MODBUS_HOST=${MODBUS_HOST:-192.168.1.50}
+      - MODBUS_PORT=${MODBUS_PORT:-502}
+      - DEVICE_ID=${DEVICE_ID:-1}
+      - MQTT_BROKER=${MQTT_BROKER:-192.168.1.5}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_TOPIC_PREFIX=${MQTT_TOPIC_PREFIX:-klskmp/metering/blitz}
+      - POLL_INTERVAL=${POLL_INTERVAL:-5}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

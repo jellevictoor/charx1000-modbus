@@ -1,0 +1,15 @@
+[project]
+name = "charx1000-modbus"
+version = "0.1.0"
+description = "MQTT publisher for CharX1000 Blitz charging stations via Modbus"
+authors = [{name = "Jelle Victoor", email = "jelle@victoor.io"}]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pymodbus>=3.11.1",
+    "paho-mqtt>=2.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
