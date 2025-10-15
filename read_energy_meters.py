@@ -152,7 +152,7 @@ def publish_data(mqtt_client, cp_id: str, cp_name: str, data: Dict):
     # Publish each metric
     for key, value in data.items():
         topic = f"{base_topic}/{key}"
-        mqtt_client.publish(topic, value, retain=True)
+        mqtt_client.publish(topic, value, retain=False)
 
     log.info(f"Published {len(data)} metrics for {cp_name}")
 
