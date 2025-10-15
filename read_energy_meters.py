@@ -21,7 +21,7 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "klskmp/metering/blitz")
 
 # Poll interval in seconds
-POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "5"))
+POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
 
 # Charging points configuration
 CHARGING_POINTS = {
