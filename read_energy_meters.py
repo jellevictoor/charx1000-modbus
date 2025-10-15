@@ -68,7 +68,7 @@ def read_u32(client, address) -> Optional[int]:
             return None
         return (rr.registers[0] << 16) | rr.registers[1]
     except Exception as e:
-        log.exception(f"Error reading u32 @ {address}: {e}")
+        log.exception(f"Error reading u32 @ {address}")
         return None
 
 def read_i32(client, address) -> Optional[int]:
@@ -80,7 +80,7 @@ def read_i32(client, address) -> Optional[int]:
         unsigned = (rr.registers[0] << 16) | rr.registers[1]
         return struct.unpack('>i', struct.pack('>I', unsigned))[0]
     except Exception as e:
-        log.exception(f"Error reading i32 @ {address}: {e}")
+        log.exception(f"Error reading i32 @ {address}")
         return None
 
 def read_u64(client, address) -> Optional[int]:
@@ -92,7 +92,7 @@ def read_u64(client, address) -> Optional[int]:
         return (rr.registers[0] << 48) | (rr.registers[1] << 32) | \
             (rr.registers[2] << 16) | rr.registers[3]
     except Exception as e:
-        log.exception(f"Error reading u64 @ {address}: {e}")
+        log.exception(f"Error reading u64 @ {address}")
         return None
 
 def read_u16(client, address) -> Optional[int]:
@@ -103,7 +103,7 @@ def read_u16(client, address) -> Optional[int]:
             return None
         return rr.registers[0]
     except Exception as e:
-        log.exception(f"Error reading u16 @ {address}: {e}")
+        log.exception(f"Error reading u16 @ {address}")
         return None
 
 def read_charging_point(client, cp_id: str, config: Dict) -> Optional[Dict]:
@@ -168,7 +168,7 @@ def main():
         mqtt_client.loop_start()
         log.info("✓ Connected to MQTT")
     except Exception as e:
-        log.info(f"✗ Failed to connect to MQTT: {e}")
+        log.exception(f"✗ Failed to connect to MQTT")
         return
 
     # Connect to Modbus
@@ -192,7 +192,6 @@ def main():
                 else:
                     log.info(f"  {cp_name}: Failed to read data")
 
-            log.info()
             time.sleep(POLL_INTERVAL)
 
     except KeyboardInterrupt:
