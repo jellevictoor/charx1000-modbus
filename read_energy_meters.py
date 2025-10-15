@@ -4,6 +4,8 @@ CharX1000 Blitz Power Station to MQTT Publisher
 Reads energy data from Blitz chargers and publishes to MQTT
 with mbmd-compatible topic structure
 """
+import logging
+
 from pymodbus.client import ModbusTcpClient
 import paho.mqtt.client as mqtt
 import os
@@ -11,6 +13,11 @@ import time
 import struct
 from typing import Dict, Optional
 
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s')
+logging.getLogger().addHandler(logging.StreamHandler())
+logging.getLogger().setLevel(logging.INFO)
 # Configuration from environment variables with defaults
 MODBUS_HOST = os.getenv("MODBUS_HOST", "192.168.1.50")
 MODBUS_PORT = int(os.getenv("MODBUS_PORT", "502"))
@@ -61,7 +68,7 @@ def read_u32(client, address) -> Optional[int]:
             return None
         return (rr.registers[0] << 16) | rr.registers[1]
     except Exception as e:
-        print(f"Error reading u32 @ {address}: {e}")
+        log.exception(f"Error reading u32 @ {address}: {e}")
         return None
 
 def read_i32(client, address) -> Optional[int]:
@@ -73,7 +80,7 @@ def read_i32(client, address) -> Optional[int]:
         unsigned = (rr.registers[0] << 16) | rr.registers[1]
         return struct.unpack('>i', struct.pack('>I', unsigned))[0]
     except Exception as e:
-        print(f"Error reading i32 @ {address}: {e}")
+        log.exception(f"Error reading i32 @ {address}: {e}")
         return None
 
 def read_u64(client, address) -> Optional[int]:
@@ -85,7 +92,7 @@ def read_u64(client, address) -> Optional[int]:
         return (rr.registers[0] << 48) | (rr.registers[1] << 32) | \
             (rr.registers[2] << 16) | rr.registers[3]
     except Exception as e:
-        print(f"Error reading u64 @ {address}: {e}")
+        log.exception(f"Error reading u64 @ {address}: {e}")
         return None
 
 def read_u16(client, address) -> Optional[int]:
@@ -96,7 +103,7 @@ def read_u16(client, address) -> Optional[int]:
             return None
         return rr.registers[0]
     except Exception as e:
-        print(f"Error reading u16 @ {address}: {e}")
+        log.exception(f"Error reading u16 @ {address}: {e}")
         return None
 
 def read_charging_point(client, cp_id: str, config: Dict) -> Optional[Dict]:
@@ -147,21 +154,21 @@ def publish_data(mqtt_client, cp_id: str, cp_name: str, data: Dict):
         topic = f"{base_topic}/{key}"
         mqtt_client.publish(topic, value, retain=True)
 
-    print(f"Published {len(data)} metrics for {cp_name}")
+    log.info(f"Published {len(data)} metrics for {cp_name}")
 
 def main():
-    print("CharX1000 Blitz Charger MQTT Publisher (mbmd-compatible format)")
-    print(f"Connecting to Modbus: {MODBUS_HOST}:{MODBUS_PORT}")
-    print(f"Connecting to MQTT: {MQTT_BROKER}:{MQTT_PORT}")
+    log.info("CharX1000 Blitz Charger MQTT Publisher (mbmd-compatible format)")
+    log.info(f"Connecting to Modbus: {MODBUS_HOST}:{MODBUS_PORT}")
+    log.info(f"Connecting to MQTT: {MQTT_BROKER}:{MQTT_PORT}")
 
     # Connect to MQTT
     mqtt_client = mqtt.Client(client_id="blitz_publisher")
     try:
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
-        print("✓ Connected to MQTT")
+        log.info("✓ Connected to MQTT")
     except Exception as e:
-        print(f"✗ Failed to connect to MQTT: {e}")
+        log.info(f"✗ Failed to connect to MQTT: {e}")
         return
 
     # Connect to Modbus
@@ -169,9 +176,9 @@ def main():
 
     try:
         if not modbus_client.connect():
-            print("✗ Failed to connect to Modbus server")
+            log.info("✗ Failed to connect to Modbus server")
             return
-        print("✓ Connected to Modbus\n")
+        log.info("✓ Connected to Modbus\n")
 
         while True:
             for cp_id, config in CHARGING_POINTS.items():
@@ -180,21 +187,21 @@ def main():
 
                 if data:
                     publish_data(mqtt_client, cp_id, cp_name, data)
-                    print(f"  {cp_name}: Power={data.get('Power', 0):.1f}W, "
+                    log.info(f"  {cp_name}: Power={data.get('Power', 0):.1f}W, "
                           f"Import={data.get('Import', 0):.0f}Wh")
                 else:
-                    print(f"  {cp_name}: Failed to read data")
+                    log.info(f"  {cp_name}: Failed to read data")
 
-            print()
+            log.info()
             time.sleep(POLL_INTERVAL)
 
     except KeyboardInterrupt:
-        print("\nStopping...")
+        log.info("\nStopping...")
     finally:
         modbus_client.close()
         mqtt_client.loop_stop()
         mqtt_client.disconnect()
-        print("Disconnected")
+        log.info("Disconnected")
 
 if __name__ == "__main__":
     main()
