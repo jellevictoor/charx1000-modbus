@@ -60,6 +60,38 @@ REGISTER_MAP = {
     "vehicle_status": 299,
 }
 
+def ensure_connection(client, max_retries=3) -> bool:
+    """Ensure Modbus connection is alive, reconnect if necessary"""
+    for attempt in range(max_retries):
+        if client.connected:
+            # Test the connection with a simple read
+            try:
+                test_read = client.read_holding_registers(address=1000, count=1, device_id=DEVICE_ID)
+                if not test_read.isError():
+                    return True
+                log.warning("Connection test failed, reconnecting...")
+            except Exception as e:
+                log.warning(f"Connection test exception: {e}, reconnecting...")
+
+        # Connection is not alive, try to reconnect
+        try:
+            if client.connected:
+                client.close()
+            time.sleep(1)  # Brief delay before reconnect
+            if client.connect():
+                log.info(f"✓ Reconnected to Modbus (attempt {attempt + 1}/{max_retries})")
+                return True
+            else:
+                log.warning(f"✗ Reconnection failed (attempt {attempt + 1}/{max_retries})")
+        except Exception as e:
+            log.warning(f"Reconnection error (attempt {attempt + 1}/{max_retries}): {e}")
+
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)  # Exponential backoff
+
+    log.error("Failed to establish Modbus connection after all retries")
+    return False
+
 def read_u32(client, address) -> Optional[int]:
     """Read 32-bit unsigned value"""
     try:
@@ -180,7 +212,19 @@ def main():
             return
         log.info("✓ Connected to Modbus\n")
 
+        consecutive_failures = 0
+        max_consecutive_failures = 5
+
         while True:
+            # Ensure connection is alive before reading
+            if not ensure_connection(modbus_client):
+                log.error("Cannot establish Modbus connection, retrying in 30 seconds...")
+                time.sleep(30)
+                continue
+
+            # Reset failure counter on successful connection
+            success = False
+
             for cp_id, config in CHARGING_POINTS.items():
                 cp_name = config["name"]
                 data = read_charging_point(modbus_client, cp_id, config)
@@ -189,8 +233,19 @@ def main():
                     publish_data(mqtt_client, cp_id, cp_name, data)
                     log.info(f"  {cp_name}: Power={data.get('Power', 0):.1f}W, "
                           f"Import={data.get('Import', 0):.0f}Wh")
+                    success = True
                 else:
                     log.info(f"  {cp_name}: Failed to read data")
+
+            # Track consecutive failures
+            if not success:
+                consecutive_failures += 1
+                if consecutive_failures >= max_consecutive_failures:
+                    log.warning(f"Too many consecutive failures ({consecutive_failures}), forcing reconnection...")
+                    modbus_client.close()
+                    consecutive_failures = 0
+            else:
+                consecutive_failures = 0
 
             time.sleep(POLL_INTERVAL)
 
